@@ -6,8 +6,8 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_gpio.h"
-#include "defines.h"
-#include "tm_stm32f4_spi.h"
+#include "stm32f4xx_spi.h"
+#include "SPI.h"
 
 
 #ifndef LSM_I2C_SUPPORT
@@ -23,21 +23,21 @@
 
 
 /* SPI on STM32F4-Discovery board */
-#define LSM_SPI						SPI2
-#define LSM_SPI_PINSPACK	TM_SPI_PinsPack_2
+#define LSM_SPI						SPI1
+#define LSM_SPI_PINSPACK	TM_SPI_PinsPack_1
 
 
 /* CS pin on to IMU */
 #ifndef LSM_CSG_PIN
-#define LSM_CSG_RCC				RCC_AHB1Periph_GPIOD
-#define LSM_CSG_PORT			GPIOD
-#define LSM_CSG_PIN				GPIO_Pin_10
+#define LSM_CSG_RCC				RCC_AHB1Periph_GPIOE
+#define LSM_CSG_PORT			GPIOE
+#define LSM_CSG_PIN				GPIO_Pin_8
 #endif
 
 #ifndef LSM_CSXM_PIN
-#define LSM_CSXM_RCC			RCC_AHB1Periph_GPIOB
-#define LSM_CSXM_PORT			GPIOB
-#define LSM_CSXM_PIN			GPIO_Pin_12
+#define LSM_CSXM_RCC			RCC_AHB1Periph_GPIOE
+#define LSM_CSXM_PORT			GPIOE
+#define LSM_CSXM_PIN			GPIO_Pin_7
 #endif
 
 /* CS pin settings */
