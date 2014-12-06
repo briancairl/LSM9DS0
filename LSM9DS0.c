@@ -1,10 +1,10 @@
 #include "LSM9DS0.h"
 
 
-static void delay( uint32_t wait )
+static void delay(volatile uint32_t wait )
 {
 	wait *= 100000UL;
-	while(-wait);
+	while(--wait);
 }
 
 
@@ -37,6 +37,7 @@ void LSM9DS0_Init( LSM9DS0_t* lsm_t, interface_mode interface, uint8_t gAddr, ui
 
 uint16_t LSM9DS0_begin( LSM9DS0_t* lsm_t, LMS9DS0_Init_t* init_t )
 {
+	uint8_t gTest, xmTest;
 	if(init_t==NULL)
 		init_t = &LMS_Device_Defaults;
 
@@ -62,8 +63,8 @@ uint16_t LSM9DS0_begin( LSM9DS0_t* lsm_t, LMS9DS0_Init_t* init_t )
 	
 	// To verify communication, we can read from the WHO_AM_I register of
 	// each device. Store those in a variable so we can return them.
-	uint8_t gTest  = gReadByte(lsm_t,WHO_AM_I_G);		// Read the gyro WHO_AM_I
-	uint8_t xmTest = xmReadByte(lsm_t,WHO_AM_I_XM);	// Read the accel/mag WHO_AM_I
+	gTest  = gReadByte(lsm_t,WHO_AM_I_G);		// Read the gyro WHO_AM_I
+	xmTest = xmReadByte(lsm_t,WHO_AM_I_XM);	// Read the accel/mag WHO_AM_I
 	
 	// Gyro initialization stuff:
 	initGyro(lsm_t);		// This will "turn on" the gyro. Setting up interrupts, etc.
@@ -608,39 +609,9 @@ void xmReadBytes(LSM9DS0_t* lsm_t, uint8_t subAddress, uint8_t * dest, uint8_t c
 
 void LSM_initSPI()
 {
-	GPIO_InitTypeDef GPIO_InitStruct;
 
 	/* Initialize SPI */
-	TM_SPI_Init(LSM_SPI, LSM_SPI_PINSPACK);
-	
-	/* Enable clock for CS port */
-	RCC_AHB1PeriphClockCmd(LSM_CSG_RCC,  ENABLE);
-	
-	/* Configure CS pin */
-	GPIO_InitStruct.GPIO_Pin 		= LSM_CSG_PIN;
-	GPIO_InitStruct.GPIO_Mode 	= GPIO_Mode_OUT;
-	GPIO_InitStruct.GPIO_OType 	= GPIO_OType_PP;
-	GPIO_InitStruct.GPIO_PuPd 	= GPIO_PuPd_UP;
-	GPIO_InitStruct.GPIO_Speed 	= GPIO_Speed_25MHz;
-
-
-	/* GPIO-G Init */
-	GPIO_Init(LSM_CSG_PORT, &GPIO_InitStruct);
-
-	
-	/* Enable clock for CS port */
-	RCC_AHB1PeriphClockCmd(LSM_CSXM_RCC,  ENABLE);
-	
-	/* Configure CS pin */
-	GPIO_InitStruct.GPIO_Pin 		= LSM_CSXM_PIN;
-	GPIO_InitStruct.GPIO_Mode 	= GPIO_Mode_OUT;
-	GPIO_InitStruct.GPIO_OType 	= GPIO_OType_PP;
-	GPIO_InitStruct.GPIO_PuPd 	= GPIO_PuPd_UP;
-	GPIO_InitStruct.GPIO_Speed 	= GPIO_Speed_25MHz;
-
-	/* GPIO-XM Init */
-	GPIO_Init(LSM_CSXM_PORT, &GPIO_InitStruct);
-
+	init_SPI();
 	
 	/* CS HIGH */
 	LSM_CSG_HIGH;
@@ -650,19 +621,13 @@ void LSM_initSPI()
 void SPIwriteByte(uint8_t csPin, uint8_t subAddress, uint8_t data,char chip)
 {
 	if(chip=='g') // Initiate communication
-		LSM_CSG_LOW; 
+	{
+		set_SPI_Data(subAddress, G, data);
+	} 
 	else
-		LSM_CSXM_LOW;
-	
-	// If write, bit 0 (MSB) should be 0
-	// If single write, bit 1 should be 0
-	TM_SPI_Send(LSM_SPI, subAddress & 0x3F); 	// Send Address
-	TM_SPI_Send(LSM_SPI, data); 				// Send data
-	
-	if(chip=='g') // End communication
-		LSM_CSG_HIGH; 
-	else
-		LSM_CSXM_HIGH;
+	{
+		set_SPI_Data(subAddress, XM, data);
+	}
 }
 
 uint8_t SPIreadByte(uint8_t csPin, uint8_t subAddress,char chip)
@@ -676,27 +641,24 @@ uint8_t SPIreadByte(uint8_t csPin, uint8_t subAddress,char chip)
 
 void SPIreadBytes(uint8_t csPin, uint8_t subAddress, uint8_t * dest, uint8_t count,char chip)
 {
+	
 	if(chip=='g') // Initiate communication
-		LSM_CSG_LOW; 
+	{
+		int i;
+		for(i = 0; i < count; i++)
+		{
+			dest[i] = get_SPI_Data(subAddress + i, G);
+		}
+	}
 	else
-		LSM_CSXM_LOW;
-	
-	
-	// To indicate a read, set bit 0 (msb) to 1
-	// If we're reading multiple bytes, set bit 1 to 1
-	// The remaining six bytes are the address to be read
-	if (count > 1)
-		TM_SPI_Send(LSM_SPI, 0xC0 | (subAddress & 0x3F));
-	else
-		TM_SPI_Send(LSM_SPI, 0x80 | (subAddress & 0x3F));
+	{
+		int i;
+		for(i = 0; i < count; i++)
+		{
+			dest[i] = get_SPI_Data(subAddress + i, XM);
+		}
+	}
 
-	TM_SPI_ReadMulti(LSM_SPI,dest,0x00,count);
-
-	
-	if(chip=='g') // End communication
-		LSM_CSG_HIGH; 
-	else
-		LSM_CSXM_HIGH;
 }
 
 
